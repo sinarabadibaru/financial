@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="id"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Keuangan Sinar Abadi Baru</title><link rel="icon" href="logo.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Figtree:wght@400;500;600&display=swap">
+<style>
+:root{--y:#FDEE15;--r:#EE3138;--k:#151515;--bg:#F6F4EC;--card:#fff;--mut:#6d6a60;--ok:#177a45;--line:#e4e0d2}
+*{box-sizing:border-box}body{margin:0;font-family:Figtree,system-ui,sans-serif;background:var(--bg);color:var(--k)}
+h1,h2,.num{font-family:'Bricolage Grotesque',sans-serif}
+button,input,select{font:inherit}
+.app{display:flex;min-height:100vh}
+aside{width:230px;background:var(--k);padding:16px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
+aside img{width:100%;background:#fff;border-radius:10px;padding:6px;margin-bottom:14px}
+aside a{color:#ddd;padding:10px 12px;border-radius:10px;cursor:pointer;text-decoration:none}
+aside a.on{background:var(--y);color:var(--k);font-weight:600}
+aside .me{margin-top:auto;color:#aaa;font-size:12px;word-break:break-all}
+aside .me button{margin-top:8px;width:100%;background:none;border:1px solid #555;color:#eee;border-radius:8px;padding:6px;cursor:pointer}
+main{flex:1;padding:28px;max-width:1100px}
+h1{margin:0 0 4px;font-size:28px}.sub{color:var(--mut);margin:0 0 22px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:22px}
+.card{background:var(--card);border-radius:14px;padding:16px 18px;border:1px solid var(--line)}
+.card small{color:var(--mut)}.num{font-size:26px;font-weight:800;margin-top:4px}
+.in{color:var(--ok)}.out{color:var(--r)}
+.card.dark{background:var(--k);color:#fff;border:0}.card.dark small{color:#bbb}
+.card.dark .num{color:var(--y)}
+h2{font-size:17px;margin:22px 0 10px}
+.btn{background:var(--r);color:#fff;border:0;border-radius:10px;padding:10px 16px;cursor:pointer;font-weight:600}
+.btn.y{background:var(--y);color:var(--k)}.btn.g{background:#fff;color:var(--k);border:1px solid var(--line)}
+.btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--y);outline-offset:2px}
+label{display:block;font-size:13px;color:var(--mut);margin:12px 0 4px}
+input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.form{max-width:460px}.seg{display:flex;gap:8px}.seg button{flex:1}
+.seg .sel.in{background:var(--ok);color:#fff}.seg .sel.out{background:var(--r);color:#fff}
+table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);font-size:14px}
+th{background:#efece0}td.r,th.r{text-align:right}
+tr.sec td{font-weight:700}tr.sum td{background:var(--y);font-weight:700}tr.tot td{background:#dfe9d8;font-weight:700}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}.row>div{flex:1;min-width:140px}
+.wrap{overflow-x:auto}.toast{position:fixed;bottom:18px;right:18px;background:var(--k);color:#fff;padding:10px 16px;border-radius:10px}
+.login{max-width:380px;margin:8vh auto;padding:0 16px}.login img{width:100%;margin-bottom:16px}
+.tabs{display:flex;gap:6px;margin-bottom:6px}.err{color:var(--r);font-size:13px;margin-top:8px}
+@media(max-width:760px){.app{flex-direction:column}aside{width:100%;height:auto;flex-direction:row;overflow-x:auto;position:static;align-items:center}
+aside img{width:90px;margin:0}aside a{white-space:nowrap}aside .me{display:none}main{padding:16px}}
+</style></head><body><div id="root"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+<script src="config.js"></script>
+<script>
+const sb=supabase.createClient(CFG.url,CFG.key),$=s=>document.querySelector(s),root=$('#root');
+const CAT={in:['Biaya Kursus','Biaya SIM','Setoran Kauman','Saldo'],
+out:['Konsumsi','Sewa Mobil','Setor SIM','Bensin','Listrik','Wifi','Pulsa','Perawatan Mobil','Fee','Gaji','Kasbon','Promosi','Pajak','Sewa Kantor','Lain-lain','Saldo']};
+const MONTHS=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const z=n=>String(n).padStart(2,'0'),iso=d=>`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}`;
+const P=s=>{const[a,b,c]=s.split('-');return new Date(+a,+b-1,+c)};
+const dmy=s=>s.split('-').reverse().join('-'),dmyS=s=>s.split('-').reverse().join(' - ');
+const rp=n=>'Rp'+Math.round(n).toLocaleString('id-ID'),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const today=()=>iso(new Date()),monthRange=(y,m)=>[iso(new Date(y,m,1)),iso(new Date(y,m+1,0))];
+function weekRange(s){const d=P(s),k=(d.getDay()+6)%7,a=new Date(d);a.setDate(d.getDate()-k);const b=new Date(a);b.setDate(a.getDate()+6);return[iso(a),iso(b)]}
+function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.append(e);setTimeout(()=>e.remove(),2500)}
+async function rows(a,b){const{data,error}=await sb.from('transactions').select('*').gte('date',a).lte('date',b).order('date',{ascending:false}).order('created_at',{ascending:false}).limit(5000);if(error)throw error;return data}
+async function saldoBefore(d){const{data,error}=await sb.rpc('saldo_sebelum',{d});if(error)throw error;return Number(data||0)}
+const sum=(r,t)=>r.filter(x=>x.type===t).reduce((s,x)=>s+Number(x.amount),0);
+function byCat(r,t){const m={};r.filter(x=>x.type===t).forEach(x=>m[x.category]=(m[x.category]||0)+Number(x.amount));return CAT[t].filter(c=>m[c]).map(c=>[c,m[c]])}
+let user=null,view='dash';
+const NAV=[['dash','Dashboard'],['catat','Catat transaksi'],['riwayat','Riwayat'],['laporan','Laporan PDF']];
+
+/* ---------- login ---------- */
+function loginView(mode='in',err=''){
+root.innerHTML=`<div class="login"><img src="logo.png" alt="Sinar Abadi Baru"><div class="card">
+<div class="tabs"><button class="btn ${mode==='in'?'y':'g'}" id="t1">Masuk</button><button class="btn ${mode==='up'?'y':'g'}" id="t2">Daftar</button></div>
+<label>Email</label><input id="em" type="email" autocomplete="email"><label>Password</label><input id="pw" type="password" autocomplete="${mode==='in'?'current-password':'new-password'}" placeholder="Minimal 6 karakter">
+<div class="err">${esc(err)}</div><p><button class="btn" style="width:100%" id="go">${mode==='in'?'Masuk':'Buat akun'}</button></p>
+<button class="btn g" style="width:100%" id="gh">Lanjut dengan GitHub</button></div></div>`;
+$('#t1').onclick=()=>loginView('in');$('#t2').onclick=()=>loginView('up');
+$('#go').onclick=async()=>{const email=$('#em').value.trim(),password=$('#pw').value;
+ const r=mode==='in'?await sb.auth.signInWithPassword({email,password}):await sb.auth.signUp({email,password});
+ if(r.error)return loginView(mode,r.error.message);
+ if(mode==='up'&&!r.data.session)return loginView('in','Akun dibuat. Cek email untuk konfirmasi, lalu masuk.')};
+$('#gh').onclick=()=>sb.auth.signInWithOAuth({provider:'github',options:{redirectTo:location.origin}})}
+
+/* ---------- shell ---------- */
+function shell(){root.innerHTML=`<div class="app"><aside><img src="logo.png" alt="Sinar Abadi Baru">
+${NAV.map(([k,l])=>`<a data-v="${k}" tabindex="0" class="${view===k?'on':''}">${l}</a>`).join('')}
+<div class="me">Masuk sebagai<br><b>${esc(user.email)}</b><button id="out">Keluar</button></div></aside><main id="m"></main></div>`;
+document.querySelectorAll('aside a').forEach(a=>{a.onclick=()=>{view=a.dataset.v;shell()};a.onkeydown=e=>e.key==='Enter'&&a.click()});
+$('#out').onclick=()=>sb.auth.signOut();
+({dash,catat,riwayat,laporan})[view]().catch(e=>$('#m').innerHTML=`<p class="err">Gagal memuat: ${esc(e.message)}</p>`)}
+
+/* ---------- dashboard ---------- */
+async function dash(){const n=new Date(),[a,b]=monthRange(n.getFullYear(),n.getMonth());
+const [r,total]=await Promise.all([rows(a,b),saldoBefore(iso(new Date(n.getFullYear(),n.getMonth()+1,1)))]);
+const li=byCat(r,'in'),lo=byCat(r,'out'),list=c=>c.length?c.map(([k,v])=>`<tr><td>${k}</td><td class="r">${rp(v)}</td></tr>`).join(''):'<tr><td>Belum ada data</td><td></td></tr>';
+$('#m').innerHTML=`<h1>Dashboard</h1><p class="sub">Ringkasan bulan ${MONTHS[n.getMonth()]} ${n.getFullYear()}</p>
+<div class="grid"><div class="card"><small>Uang masuk</small><div class="num in">${rp(sum(r,'in'))}</div></div>
+<div class="card"><small>Uang keluar</small><div class="num out">${rp(sum(r,'out'))}</div></div>
+<div class="card dark"><small>Saldo kas saat ini</small><div class="num">${rp(total)}</div></div></div>
+<p><button class="btn" id="q">+ Catat transaksi</button> <button class="btn g" id="l">Buat laporan PDF</button></p>
+<div class="grid"><div><h2>Uang masuk per kategori</h2><table>${list(li)}</table></div><div><h2>Uang keluar per kategori</h2><table>${list(lo)}</table></div></div>
+<h2>Transaksi terakhir</h2><div class="wrap">${txTable(r.slice(0,8),false)}</div>`;
+$('#q').onclick=()=>{view='catat';shell()};$('#l').onclick=()=>{view='laporan';shell()}}
+function txTable(r,del){return r.length?`<table><tr><th>Tanggal</th><th>Kategori</th><th>Keterangan</th><th class="r">Jumlah</th>${del?'<th></th>':''}</tr>${r.map(x=>`<tr><td>${dmy(x.date)}</td><td>${esc(x.category)}</td><td>${esc(x.description)}</td>
+<td class="r ${x.type}">${x.type==='in'?'+':'−'}${rp(x.amount)}</td>${del?`<td><button class="btn g" data-d="${x.id}">Hapus</button></td>`:''}</tr>`).join('')}</table>`:'<div class="card">Belum ada transaksi pada periode ini.</div>'}
+
+/* ---------- catat ---------- */
+async function catat(){let t='in';const draw=()=>{$('#m').innerHTML=`<h1>Catat transaksi</h1><p class="sub">Uang masuk atau uang keluar</p><div class="form card">
+<div class="seg"><button class="btn g ${t==='in'?'sel in':''}" data-t="in">Uang masuk</button><button class="btn g ${t==='out'?'sel out':''}" data-t="out">Uang keluar</button></div>
+<label>Tanggal</label><input id="d" type="date" value="${today()}"><label>Kategori</label><select id="c">${CAT[t].map(c=>`<option>${c}</option>`).join('')}</select>
+<label>Jumlah (Rp)</label><input id="a" type="number" min="1" inputmode="numeric"><label>Keterangan (opsional)</label><input id="n" placeholder="mis. Pembayaran kursus a.n. Budi">
+<p><button class="btn" id="s" style="width:100%">Simpan</button></p></div>`;
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{t=b.dataset.t;draw()});
+$('#s').onclick=async()=>{const amount=+$('#a').value;if(!amount||amount<1)return toast('Isi jumlah dulu');
+ const{error}=await sb.from('transactions').insert({date:$('#d').value,type:t,category:$('#c').value,amount,description:$('#n').value.trim()||null});
+ if(error)return toast('Gagal menyimpan: '+error.message);toast('Tersimpan');draw()}};draw()}
+
+/* ---------- riwayat ---------- */
+async function riwayat(){const n=new Date(),[a,b]=monthRange(n.getFullYear(),n.getMonth());
+$('#m').innerHTML=`<h1>Riwayat</h1><p class="sub">Semua transaksi pada periode</p><div class="row"><div><label>Dari</label><input id="f" type="date" value="${a}"></div><div><label>Sampai</label><input id="t" type="date" value="${b}"></div>
+<div><label>Jenis</label><select id="j"><option value="">Semua</option><option value="in">Uang masuk</option><option value="out">Uang keluar</option></select></div></div><div class="wrap" id="tb" style="margin-top:14px"></div>`;
+const load=async()=>{let r=await rows($('#f').value,$('#t').value);const j=$('#j').value;if(j)r=r.filter(x=>x.type===j);$('#tb').innerHTML=txTable(r,true);
+ document.querySelectorAll('[data-d]').forEach(x=>x.onclick=async()=>{if(!confirm('Hapus transaksi ini?'))return;const{error}=await sb.from('transactions').delete().eq('id',x.dataset.d);error?toast(error.message):(toast('Terhapus'),load())})};
+['f','t','j'].forEach(i=>$('#'+i).onchange=load);load()}
+
+/* ---------- laporan ---------- */
+async function report(mode,v1,v2,v3){let a,b,title;
+ if(mode==='week'){[a,b]=weekRange(v1);title=`Periode : ${dmyS(a)} s/d ${dmyS(b)}`}
+ else if(mode==='month'){const[y,m]=v2.split('-').map(Number);[a,b]=monthRange(y,m-1);title=`PERIODE BULAN ${MONTHS[m-1].toUpperCase()} ${y}`}
+ else{a=v1;b=v3;title=`Periode : ${dmyS(a)} s/d ${dmyS(b)}`}
+ const[r,awal]=await Promise.all([rows(a,b),saldoBefore(a)]);const tin=sum(r,'in'),tout=sum(r,'out');
+ return{title,awal,mi:byCat(r,'in'),mo:byCat(r,'out'),tin,tout,akhir:awal+tin-tout,a,b}}
+function reportRows(R){const B=(c,x={})=>({content:c,styles:{fontStyle:'bold',...x}}),Y={fillColor:[253,238,21]},G={fillColor:[223,233,216]},e='';
+ return[[ 'Saldo Awal',e,e,B(rp(R.awal),{halign:'right'})],[B('KAS MASUK'),e,e,e],...R.mi.map(([k,v])=>[k,rp(v),e,e]),[B('KAS KELUAR'),e,e,e],...R.mo.map(([k,v])=>[k,e,rp(v),e]),
+ [B('JUMLAH',Y),B(rp(R.tin),Y),B(rp(R.tout),Y),B('',Y)],['Saldo Pindahan',rp(R.awal),e,e],['Saldo dipindahkan',e,rp(R.akhir),e],
+ [B('TOTAL',G),B(rp(R.tin+R.awal),G),B(rp(R.tout+R.akhir),G),B('',G)]]}
+async function laporan(){const n=new Date();
+$('#m').innerHTML=`<h1>Laporan PDF</h1><p class="sub">Pilih periode lalu unduh laporan keuangan</p><div class="row">
+<div><label>Jenis laporan</label><select id="md"><option value="week">Pekanan</option><option value="month">Bulanan</option><option value="custom">Rentang tanggal</option></select></div>
+<div id="p1"><label>Tanggal dalam pekan (Senin–Minggu)</label><input id="w" type="date" value="${today()}"></div>
+<div id="p2" hidden><label>Bulan</label><input id="mo" type="month" value="${n.getFullYear()}-${z(n.getMonth()+1)}"></div>
+<div id="p3" hidden><label>Dari</label><input id="f" type="date" value="${today()}"></div><div id="p4" hidden><label>Sampai</label><input id="t" type="date" value="${today()}"></div>
+<div style="flex:0"><button class="btn" id="pdf">Unduh PDF</button></div></div><div class="wrap" id="pv" style="margin-top:18px"></div>`;
+const args=()=>{const m=$('#md').value;return m==='custom'?report(m,$('#f').value,'',$('#t').value):report(m,$('#w').value,$('#mo').value)};
+const show=async()=>{const m=$('#md').value;p1.hidden=m!=='week';p2.hidden=m!=='month';p3.hidden=p4.hidden=m!=='custom';
+ const R=await args();$('#pv').innerHTML=`<h2>${esc(R.title)}</h2><table><tr><th>Keterangan</th><th class="r">Kas masuk</th><th class="r">Kas keluar</th><th class="r">Saldo</th></tr>${reportRows(R).map(r=>{const c=x=>typeof x==='object'?x.content:x,cls=c(r[0])==='JUMLAH'?'sum':c(r[0])==='TOTAL'?'tot':/^KAS/.test(c(r[0]))?'sec':'';
+ return`<tr class="${cls}"><td>${c(r[0])}</td><td class="r">${c(r[1])}</td><td class="r">${c(r[2])}</td><td class="r">${c(r[3])}</td></tr>`}).join('')}</table>`};
+['md','w','mo','f','t'].forEach(i=>$('#'+i).onchange=show);
+$('#pdf').onclick=async()=>{const R=await args(),doc=new jspdf.jsPDF({unit:'mm',format:'a4'}),W=doc.internal.pageSize.getWidth();
+ doc.addImage('logo.png','PNG',W/2-22,10,44,24);doc.setFont('helvetica','bold').setFontSize(14).text('LAPORAN KEUANGAN',W/2,42,{align:'center'});
+ doc.setFontSize(11).text(R.title,W/2,48,{align:'center'});
+ doc.autoTable({startY:54,head:[['KETERANGAN','KAS MASUK','KAS KELUAR','SALDO']],body:reportRows(R),theme:'grid',
+  styles:{fontSize:9.5,textColor:20,lineColor:[20,20,20],lineWidth:.2,cellPadding:1.8},headStyles:{fillColor:255,textColor:20,halign:'center',fontStyle:'bold'},
+  columnStyles:{1:{halign:'right'},2:{halign:'right'},3:{halign:'right'}}});
+ doc.setFont('helvetica','normal').setFontSize(8).text('Sinar Abadi Baru • dicetak '+dmy(today()),14,doc.internal.pageSize.getHeight()-8);
+ doc.save(`Laporan-Keuangan-SAB-${R.a}_${R.b}.pdf`)};show()}
+
+/* ---------- boot ---------- */
+sb.auth.onAuthStateChange((_e,s)=>{user=s?.user||null;user?shell():loginView()});
+sb.auth.getSession().then(({data})=>{if(!data.session)loginView()});
+</script></body></html>
