@@ -1,17 +1,36 @@
 # Keuangan Sinar Abadi Baru
-Web app statis (tanpa build) + Supabase (login & database) + jsPDF (laporan).
+Web app statis (tanpa build) + Supabase (database) + jsPDF (laporan).
 
 ## Setup
-1. **Supabase**: buat project → SQL Editor → jalankan isi `schema.sql`.
-2. **Auth → Providers**: aktifkan *Email*. Untuk GitHub: buat OAuth App di GitHub
-   (Settings → Developer settings), Callback URL = `https://<project-ref>.supabase.co/auth/v1/callback`,
-   lalu tempel Client ID/Secret di Supabase → Providers → GitHub.
-3. **Auth → URL Configuration**: isi *Site URL* dengan domain Vercel Anda (dan tambahkan ke Redirect URLs).
-4. Edit `config.js` dengan Project URL dan anon key (Settings → API).
-5. Push ke GitHub: `git init && git add . && git commit -m "init" && git remote add origin <repo> && git push -u origin main`
-6. **Vercel**: Add New Project → import repo → Framework "Other", tanpa build command → Deploy.
+1. **Supabase**: buat project → SQL Editor → jalankan seluruh isi `schema.sql`.
+2. Edit `config.js` dengan Project URL dan **anon key** project Anda (Settings → API).
+3. Push ke GitHub: `git init && git add . && git commit -m "init" && git remote add origin <repo> && git push -u origin main`
+4. **Vercel**: Add New Project → import repo → Framework "Other", tanpa build command → Deploy.
 
-## Catatan keamanan
-Semua user yang login bisa melihat & mengubah data (data bersama satu usaha). Setelah akun tim dibuat,
-matikan pendaftaran di Supabase (Auth → Sign In / Providers → nonaktifkan "Allow new users to sign up")
-agar orang luar tidak bisa daftar.
+## Login
+Aplikasi ini pakai satu layar login dengan username dan password tetap (diatur langsung
+di dalam `index.html`, cari variabel `AUTH_USER` dan `AUTH_PASS`). Login berlaku per
+perangkat/peramban (disimpan di localStorage) sampai menekan "Keluar".
+
+Untuk mengganti username/password, ubah nilai `AUTH_USER` dan `AUTH_PASS` di `index.html`,
+lalu push ulang ke GitHub — Vercel akan otomatis deploy ulang.
+
+## Catatan keamanan (penting)
+Karena ini bukan akun per-pengguna, ada dua hal yang perlu Anda sadari:
+- Username dan password ada di dalam kode halaman. Siapa pun yang melihat kode
+  sumber halaman (klik kanan → View Source) bisa membacanya. Ini cukup untuk
+  menahan orang iseng, tapi bukan keamanan tingkat bank.
+- Karena tidak ada login Supabase, akses ke database dibuka untuk kunci "anon"
+  publik (lihat `schema.sql`). Kunci ini juga terlihat di `config.js`/kode halaman.
+  Artinya siapa pun yang menyalin kunci itu bisa membaca/mengubah data langsung
+  lewat Supabase, tanpa melalui layar login sama sekali.
+
+Untuk penggunaan internal tim kecil ini biasanya cukup aman selama link dan kode
+tidak disebarluaskan. Kalau ke depannya perlu lebih aman (misalnya beberapa staf
+dengan hak akses berbeda), sebaiknya kembali memakai Supabase Auth per akun.
+
+## Menu Saldo & laporan tahunan
+- Menu **Saldo**: isi *saldo awal kas usaha* sekali di awal. Saldo awal, pindahan, dan
+  dipindahkan per pekan/bulan/tahun dihitung otomatis; isi kolomnya hanya untuk
+  mengganti angka.
+- Laporan tersedia pekanan, bulanan, tahunan, dan rentang tanggal.
