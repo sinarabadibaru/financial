@@ -34,6 +34,9 @@ h2{font-size:17px;margin:22px 0 10px}
 .btn:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--maroon);outline-offset:2px}
 label{display:block;font-size:13px;color:var(--mut);margin:12px 0 4px}
 input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.pwrap{position:relative}.pwrap input{padding-right:40px}
+.pwrap button{position:absolute;right:4px;top:4px;bottom:4px;width:34px;background:none;border:0;cursor:pointer;font-size:16px;border-radius:8px}
+.pwrap button:hover{background:var(--bg)}
 .form{max-width:460px}.seg{display:flex;gap:8px}.seg button{flex:1}
 .seg .sel.in{background:var(--ok);color:#fff}.seg .sel.out{background:var(--r);color:#fff}
 table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden}
@@ -80,12 +83,13 @@ root.innerHTML=`<div class="login"><div class="card">
 <img class="badge" src="logo-icon.png" alt="Sinar Abadi Baru">
 <h2>Sinar Abadi Baru</h2><div class="lsub">Kursus Mengemudi</div>
 <label>Username</label><input id="em" autocomplete="username">
-<label>Password</label><input id="pw" type="password" autocomplete="current-password">
+<label>Password</label><div class="pwrap"><input id="pw" type="password" autocomplete="current-password"><button type="button" id="eye">👁</button></div>
 <div class="err">${esc(err)}</div><p><button class="btn" style="width:100%" id="go">Masuk</button></p></div></div>`;
 const go=()=>{const u=$('#em').value.trim(),p=$('#pw').value;
  if(u===AUTH_USER&&p===AUTH_PASS){localStorage.setItem(AUTH_KEY,'1');user={name:AUTH_USER};shell()}
  else loginView('Username atau password salah')};
-$('#go').onclick=go;$('#pw').onkeydown=e=>e.key==='Enter'&&go()}
+$('#go').onclick=go;$('#pw').onkeydown=e=>e.key==='Enter'&&go();
+$('#eye').onclick=()=>{const i=$('#pw');const show=i.type==='password';i.type=show?'text':'password';$('#eye').textContent=show?'🙈':'👁'}}
 
 /* ---------- shell ---------- */
 function shell(){root.innerHTML=`<div class="app"><aside>
