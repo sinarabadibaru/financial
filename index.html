@@ -37,6 +37,10 @@ input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:
 .pwrap{position:relative}.pwrap input{padding-right:40px}
 .pwrap button{position:absolute;right:4px;top:4px;bottom:4px;width:34px;background:none;border:0;cursor:pointer;font-size:16px;border-radius:8px}
 .pwrap button:hover{background:var(--bg)}
+#kbwrap{margin-top:10px}.onkb{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px}
+.kbrow{display:flex;gap:5px;margin-bottom:5px}.kbrow:last-child{margin-bottom:0}
+.onkb button{flex:1;padding:8px 0;border:1px solid var(--line);background:#fff;border-radius:7px;cursor:pointer;font-size:14px}
+.onkb button:hover{background:var(--y)}
 .form{max-width:460px}.seg{display:flex;gap:8px}.seg button{flex:1}
 .seg .sel.in{background:var(--ok);color:#fff}.seg .sel.out{background:var(--r);color:#fff}
 table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden}
@@ -82,14 +86,22 @@ function loginView(err=''){
 root.innerHTML=`<div class="login"><div class="card">
 <img class="badge" src="logo-icon.png" alt="Sinar Abadi Baru">
 <h2>Sinar Abadi Baru</h2><div class="lsub">Kursus Mengemudi</div>
-<label>Username</label><input id="em" autocomplete="username">
-<label>Password</label><div class="pwrap"><input id="pw" type="password" autocomplete="current-password"><button type="button" id="eye">👁</button></div>
-<div class="err">${esc(err)}</div><p><button class="btn" style="width:100%" id="go">Masuk</button></p></div></div>`;
-const go=()=>{const u=$('#em').value.trim(),p=$('#pw').value;
- if(u===AUTH_USER&&p===AUTH_PASS){localStorage.setItem(AUTH_KEY,'1');user={name:AUTH_USER};shell()}
+<form id="lf" autocomplete="on"><label for="em">Username</label><input id="em" name="username" autocomplete="username">
+<label for="pw">Password</label><div class="pwrap"><input id="pw" name="password" type="password" autocomplete="current-password"><button type="button" id="eye" tabindex="-1">👁</button></div>
+<p style="margin:6px 0 0"><a id="kb" tabindex="0" style="font-size:12px;color:var(--maroon);cursor:pointer;text-decoration:underline">Tidak bisa mengetik? Pakai keyboard di layar</a></p>
+<div id="kbwrap" hidden></div>
+<div class="err">${esc(err)}</div><p><button class="btn" style="width:100%" id="go" type="submit">Masuk</button></p></form></div></div>`;
+const doLogin=()=>{localStorage.setItem(AUTH_KEY,'1');user={name:AUTH_USER};shell()};
+$('#lf').onsubmit=e=>{e.preventDefault();const u=$('#em').value.trim(),p=$('#pw').value;
+ if(u===AUTH_USER&&p===AUTH_PASS)doLogin();
  else loginView('Username atau password salah')};
-$('#go').onclick=go;$('#pw').onkeydown=e=>e.key==='Enter'&&go();
-$('#eye').onclick=()=>{const i=$('#pw');const show=i.type==='password';i.type=show?'text':'password';$('#eye').textContent=show?'🙈':'👁'}}
+$('#eye').onclick=()=>{const i=$('#pw');const show=i.type==='password';i.type=show?'text':'password';$('#eye').textContent=show?'🙈':'👁'};
+$('#kb').onclick=()=>{const w=$('#kbwrap');const open=w.hidden;w.hidden=!open;$('#kb').textContent=open?'Sembunyikan keyboard di layar':'Tidak bisa mengetik? Pakai keyboard di layar';
+ if(open&&!w.dataset.built){w.dataset.built='1';const rows=['qwertyuiop','asdfghjkl','zxcvbnm'];
+  w.innerHTML=`<div class="onkb">${rows.map(r=>`<div class="kbrow">${r.split('').map(c=>`<button type="button" data-c="${c}">${c}</button>`).join('')}</div>`).join('')}
+  <div class="kbrow"><button type="button" data-c="⌫" style="flex:1.4">⌫ Hapus</button><button type="button" data-c="" id="kbclear" style="flex:1.4">Bersihkan</button></div></div>`;
+  w.querySelectorAll('button[data-c]').forEach(b=>b.onclick=()=>{const i=$('#pw');const c=b.dataset.c;
+   if(b.id==='kbclear')i.value='';else if(c==='⌫')i.value=i.value.slice(0,-1);else i.value+=c;i.focus()})}}}
 
 /* ---------- shell ---------- */
 function shell(){root.innerHTML=`<div class="app"><aside>
