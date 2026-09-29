@@ -75,6 +75,7 @@ const today=()=>iso(new Date()),monthRange=(y,m)=>[iso(new Date(y,m,1)),iso(new 
 function weekRange(s){const d=P(s),k=(d.getDay()+6)%7,a=new Date(d);a.setDate(d.getDate()-k);const b=new Date(a);b.setDate(a.getDate()+6);return[iso(a),iso(b)]}
 function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.append(e);setTimeout(()=>e.remove(),2500)}
 async function rows(a,b){const{data,error}=await sb.from('transactions').select('*').gte('date',a).lte('date',b).order('date',{ascending:false}).order('created_at',{ascending:false}).limit(5000);if(error)throw error;return data}
+async function recent(n){const{data,error}=await sb.from('transactions').select('*').order('date',{ascending:false}).order('created_at',{ascending:false}).limit(n);if(error)throw error;return data}
 async function saldoBefore(d){const{data,error}=await sb.rpc('saldo_sebelum',{d});if(error)throw error;return Number(data||0)}
 const sum=(r,t)=>r.filter(x=>x.type===t).reduce((s,x)=>s+Number(x.amount),0);
 function byCat(r,t){const m={};r.filter(x=>x.type===t).forEach(x=>m[x.category]=(m[x.category]||0)+Number(x.amount));return CAT[t].filter(c=>m[c]).map(c=>[c,m[c]])}
@@ -128,15 +129,19 @@ function txTable(r,del){return r.length?`<table><tr><th>Tanggal</th><th>Kategori
 <td class="r ${x.type}">${x.type==='in'?'+':'−'}${rp(x.amount)}</td>${del?`<td><button class="btn g" data-d="${x.id}">Hapus</button></td>`:''}</tr>`).join('')}</table>`:'<div class="card">Belum ada transaksi pada periode ini.</div>'}
 
 /* ---------- catat ---------- */
-async function catat(){let t='in';const draw=()=>{$('#m').innerHTML=`<h1>Catat transaksi</h1><p class="sub">Uang masuk atau uang keluar</p><div class="form card">
+async function catat(){let t='in',recentRows=await recent(8);
+const draw=()=>{$('#m').innerHTML=`<h1>Catat transaksi</h1><p class="sub">Uang masuk atau uang keluar</p><div class="form card">
 <div class="seg"><button class="btn g ${t==='in'?'sel in':''}" data-t="in">Uang masuk</button><button class="btn g ${t==='out'?'sel out':''}" data-t="out">Uang keluar</button></div>
 <label>Tanggal</label><input id="d" type="date" value="${today()}"><label>Kategori</label><select id="c">${CAT[t].map(c=>`<option>${c}</option>`).join('')}</select>
 <label>Jumlah (Rp)</label><input id="a" type="number" min="1" inputmode="numeric"><label>Keterangan (opsional)</label><input id="n" placeholder="mis. Pembayaran kursus a.n. Budi">
-<p><button class="btn" id="s" style="width:100%">Simpan</button></p></div>`;
+<p><button class="btn" id="s" style="width:100%">Simpan</button></p></div>
+<h2>Transaksi terakhir dimasukkan</h2><div class="wrap" id="rc">${txTable(recentRows,true)}</div>`;
 document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{t=b.dataset.t;draw()});
+document.querySelectorAll('[data-d]').forEach(x=>x.onclick=async()=>{if(!confirm('Hapus transaksi ini?'))return;const{error}=await sb.from('transactions').delete().eq('id',x.dataset.d);
+ if(error)return toast(error.message);toast('Terhapus');recentRows=await recent(8);draw()});
 $('#s').onclick=async()=>{const amount=+$('#a').value;if(!amount||amount<1)return toast('Isi jumlah dulu');
  const{error}=await sb.from('transactions').insert({date:$('#d').value,type:t,category:$('#c').value,amount,description:$('#n').value.trim()||null});
- if(error)return toast('Gagal menyimpan: '+error.message);toast('Tersimpan');draw()}};draw()}
+ if(error)return toast('Gagal menyimpan: '+error.message);toast('Tersimpan');recentRows=await recent(8);draw()}};draw()}
 
 /* ---------- riwayat ---------- */
 async function riwayat(){const n=new Date(),[a,b]=monthRange(n.getFullYear(),n.getMonth());
