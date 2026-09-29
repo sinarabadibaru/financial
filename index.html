@@ -147,8 +147,8 @@ const load=async()=>{let r=await rows($('#f').value,$('#t').value);const j=$('#j
 ['f','t','j'].forEach(i=>$('#'+i).onchange=load);load()}
 
 /* ---------- laporan ---------- */
-function periodOf(m,v){
- if(m==='week'){const[a,b]=weekRange(v);return{a,b,tipe:'week',title:`Periode : ${dmyS(a)} s/d ${dmyS(b)}`}}
+function periodOf(m,v,v2){
+ if(m==='week'){const a=v,b=v2;return{a,b,tipe:'week',title:`Periode : ${dmyS(a)} s/d ${dmyS(b)}`}}
  if(m==='month'){const[y,mm]=v.split('-').map(Number),[a,b]=monthRange(y,mm-1);return{a,b,tipe:'month',title:`PERIODE BULAN ${MONTHS[mm-1].toUpperCase()} ${y}`}}
  const y=+v;return{a:`${y}-01-01`,b:`${y}-12-31`,tipe:'year',title:`PERIODE TAHUN ${y}`}}
 async function getOv(t,m){const{data}=await sb.from('saldo_periode').select('*').eq('tipe',t).eq('mulai',m).maybeSingle();return data}
@@ -160,10 +160,10 @@ function reportRows(R){const B=(c,x={})=>({content:c,styles:{fontStyle:'bold',..
  [B('JUMLAH',Y),B(rp(R.tin),Y),B(rp(R.tout),Y),B('',Y)],['Saldo Pindahan',rp(R.pindahan),e,e],['Saldo dipindahkan',e,rp(R.akhir),e],
  [B('TOTAL',G),B(rp(R.tin+R.pindahan),G),B(rp(R.tout+R.akhir),G),B('',G)]]}
 const PSEL=`<option value="week">Pekanan</option><option value="month">Bulanan</option><option value="year">Tahunan</option>`;
-const PIN=n=>`<div id="p1"><label>Tanggal dalam pekan (Senin–Minggu)</label><input id="w" type="date" value="${today()}"></div>
+const PIN=n=>{const[wa,wb]=weekRange(today());return`<div id="p1" style="display:flex;gap:10px;flex:2;min-width:280px"><div style="flex:1"><label>Dari (pekan)</label><input id="wf" type="date" value="${wa}"></div><div style="flex:1"><label>Sampai (pekan)</label><input id="wt" type="date" value="${wb}"></div></div>
 <div id="p2" hidden><label>Bulan</label><input id="mo" type="month" value="${n.getFullYear()}-${z(n.getMonth()+1)}"></div>
-<div id="p5" hidden><label>Tahun</label><input id="yr" type="number" min="2000" max="2100" value="${n.getFullYear()}"></div>`;
-const pick=()=>{const m=$('#md').value;return periodOf(m,m==='week'?$('#w').value:m==='month'?$('#mo').value:$('#yr').value)};
+<div id="p5" hidden><label>Tahun</label><input id="yr" type="number" min="2000" max="2100" value="${n.getFullYear()}"></div>`};
+const pick=()=>{const m=$('#md').value;return periodOf(m,m==='week'?$('#wf').value:m==='month'?$('#mo').value:$('#yr').value,m==='week'?$('#wt').value:undefined)};
 const toggle=()=>{const m=$('#md').value;p1.hidden=m!=='week';p2.hidden=m!=='month';p5.hidden=m!=='year';const c=$('#p3');if(c)c.hidden=$('#p4').hidden=m!=='custom'};
 async function saldo(){const n=new Date(),st=await sb.from('app_settings').select('*').maybeSingle(),open=Number(st.data?.saldo_awal||0);
 $('#m').innerHTML=`<h1>Saldo</h1><p class="sub">Atur saldo awal kas dan saldo yang tampil di laporan</p>
@@ -181,7 +181,7 @@ const show=async()=>{toggle();const R=await calc(pick()),d=(R.pindahan+R.tin)-(R
  $('#sv').onclick=async()=>{const g=i=>$(i).value===''?null:+$(i).value,p=pick();
   const{error}=await sb.from('saldo_periode').upsert({tipe:p.tipe,mulai:p.a,saldo_awal:g('#o1'),saldo_pindahan:g('#o2'),saldo_dipindahkan:g('#o3')},{onConflict:'tipe,mulai'});error?toast(error.message):(toast('Tersimpan'),show())};
  $('#rs').onclick=async()=>{const p=pick();await sb.from('saldo_periode').delete().eq('tipe',p.tipe).eq('mulai',p.a);toast('Kembali ke otomatis');show()}};
-['md','w','mo','yr'].forEach(i=>$('#'+i).onchange=show);show()}
+['md','wf','wt','mo','yr'].forEach(i=>$('#'+i).onchange=show);show()}
 
 async function laporan(){const n=new Date();
 $('#m').innerHTML=`<h1>Laporan PDF</h1><p class="sub">Pilih periode lalu unduh laporan keuangan. Angka saldo diatur di menu Saldo.</p><div class="row">
@@ -191,7 +191,7 @@ $('#m').innerHTML=`<h1>Laporan PDF</h1><p class="sub">Pilih periode lalu unduh l
 const args=()=>$('#md').value==='custom'?calc({a:$('#f').value,b:$('#t').value,title:`Periode : ${dmyS($('#f').value)} s/d ${dmyS($('#t').value)}`}):calc(pick());
 const show=async()=>{toggle();const R=await args();$('#pv').innerHTML=`<h2>${esc(R.title)}</h2><table><tr><th>Keterangan</th><th class="r">Kas masuk</th><th class="r">Kas keluar</th><th class="r">Saldo</th></tr>${reportRows(R).map(r=>{const c=x=>typeof x==='object'?x.content:x,cls=c(r[0])==='JUMLAH'?'sum':c(r[0])==='TOTAL'?'tot':/^KAS/.test(c(r[0]))?'sec':'';
  return`<tr class="${cls}"><td>${c(r[0])}</td><td class="r">${c(r[1])}</td><td class="r">${c(r[2])}</td><td class="r">${c(r[3])}</td></tr>`}).join('')}</table>`};
-['md','w','mo','yr','f','t'].forEach(i=>$('#'+i).onchange=show);
+['md','wf','wt','mo','yr','f','t'].forEach(i=>$('#'+i).onchange=show);
 $('#pdf').onclick=async()=>{const R=await args(),doc=new jspdf.jsPDF({unit:'mm',format:'a4'}),W=doc.internal.pageSize.getWidth();
  doc.addImage('logo.png','PNG',W/2-22,10,44,24);doc.setFont('helvetica','bold').setFontSize(14).text('LAPORAN KEUANGAN',W/2,42,{align:'center'});
  doc.setFontSize(11).text(R.title,W/2,48,{align:'center'});
