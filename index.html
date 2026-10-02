@@ -114,17 +114,24 @@ $('#out').onclick=()=>{localStorage.removeItem(AUTH_KEY);user=null;loginView()};
 ({dash,catat,riwayat,saldo,laporan})[view]().catch(e=>$('#m').innerHTML=`<p class="err">Gagal memuat: ${esc(e.message)}</p>`)}
 
 /* ---------- dashboard ---------- */
-async function dash(){const n=new Date(),[a,b]=monthRange(n.getFullYear(),n.getMonth());
-const [r,total]=await Promise.all([rows(a,b),saldoBefore(iso(new Date(n.getFullYear(),n.getMonth()+1,1)))]);
-const li=byCat(r,'in'),lo=byCat(r,'out'),list=c=>c.length?c.map(([k,v])=>`<tr><td>${k}</td><td class="r">${rp(v)}</td></tr>`).join(''):'<tr><td>Belum ada data</td><td></td></tr>';
-$('#m').innerHTML=`<h1>Dashboard</h1><p class="sub">Ringkasan bulan ${MONTHS[n.getMonth()]} ${n.getFullYear()}</p>
-<div class="row2"><div class="card"><small>Uang masuk</small><div class="num in">${rp(sum(r,'in'))}</div></div>
-<div class="card"><small>Uang keluar</small><div class="num out">${rp(sum(r,'out'))}</div></div></div>
-<div class="bar dark"><small>Saldo kas saat ini</small><div class="num">${rp(total)}</div></div>
-<p><button class="btn" id="q">+ Catat transaksi</button> <button class="btn g" id="l">Buat laporan PDF</button></p>
-<div class="grid"><div><h2>Uang masuk per kategori</h2><table>${list(li)}</table></div><div><h2>Uang keluar per kategori</h2><table>${list(lo)}</table></div></div>
-<h2>Transaksi terakhir</h2><div class="wrap">${txTable(r.slice(0,8),false)}</div>`;
-$('#q').onclick=()=>{view='catat';shell()};$('#l').onclick=()=>{view='laporan';shell()}}
+async function dash(){const nowReal=new Date();let vm=new Date(nowReal.getFullYear(),nowReal.getMonth(),1);
+const [last,total]=await Promise.all([recent(1),saldoBefore('2999-12-31')]);
+const lastRow=last[0];
+const render=async()=>{const[a,b]=monthRange(vm.getFullYear(),vm.getMonth());const r=await rows(a,b);const omzet=sum(r,'in');
+const future=vm.getFullYear()>nowReal.getFullYear()||(vm.getFullYear()===nowReal.getFullYear()&&vm.getMonth()>=nowReal.getMonth());
+$('#m').innerHTML=`<h1>Dashboard</h1>
+<div class="bar dark"><small>Saldo kas saat ini</small><div class="num">${rp(total)}</div>
+<div style="margin-top:8px;font-size:12px;color:#e9c9c9">${lastRow?`Data terakhir dimasukkan: ${dmy(lastRow.date)}`:'Belum ada transaksi tercatat'}</div></div>
+<div class="card"><small>Omzet bulanan</small>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
+<button class="btn g" id="pm" style="padding:10px 14px">‹</button>
+<div style="text-align:center"><div style="font-size:14px;color:var(--mut);font-weight:600">${MONTHS[vm.getMonth()]} ${vm.getFullYear()}</div><div class="num in">${rp(omzet)}</div></div>
+<button class="btn g" id="nm" style="padding:10px 14px;${future?'opacity:.35;cursor:default':''}">›</button></div></div>
+<p><button class="btn" id="q">+ Catat transaksi</button> <button class="btn g" id="l">Buat laporan PDF</button></p>`;
+$('#q').onclick=()=>{view='catat';shell()};$('#l').onclick=()=>{view='laporan';shell()};
+$('#pm').onclick=()=>{vm=new Date(vm.getFullYear(),vm.getMonth()-1,1);render()};
+$('#nm').onclick=()=>{if(future)return;vm=new Date(vm.getFullYear(),vm.getMonth()+1,1);render()}};
+await render()}
 function txTable(r,del){return r.length?`<table><tr><th>Tanggal</th><th>Kategori</th><th>Keterangan</th><th class="r">Jumlah</th>${del?'<th></th>':''}</tr>${r.map(x=>`<tr><td>${dmy(x.date)}</td><td>${esc(x.category)}</td><td>${esc(x.description)}</td>
 <td class="r ${x.type}">${x.type==='in'?'+':'−'}${rp(x.amount)}</td>${del?`<td><button class="btn g" data-d="${x.id}">Hapus</button></td>`:''}</tr>`).join('')}</table>`:'<div class="card">Belum ada transaksi pada periode ini.</div>'}
 
@@ -198,9 +205,10 @@ const show=async()=>{toggle();const R=await args();$('#pv').innerHTML=`<h2>${esc
  return`<tr class="${cls}"><td>${c(r[0])}</td><td class="r">${c(r[1])}</td><td class="r">${c(r[2])}</td><td class="r">${c(r[3])}</td></tr>`}).join('')}</table>`};
 ['md','wf','wt','mo','yr','f','t'].forEach(i=>$('#'+i).onchange=show);
 $('#pdf').onclick=async()=>{const R=await args(),doc=new jspdf.jsPDF({unit:'mm',format:'a4'}),W=doc.internal.pageSize.getWidth();
- doc.addImage('logo.png','PNG',W/2-22,10,44,24);doc.setFont('helvetica','bold').setFontSize(14).text('LAPORAN KEUANGAN',W/2,42,{align:'center'});
- doc.setFontSize(11).text(R.title,W/2,48,{align:'center'});
- doc.autoTable({startY:54,head:[['KETERANGAN','KAS MASUK','KAS KELUAR','SALDO']],body:reportRows(R),theme:'grid',
+ doc.setFont('helvetica','bold').setFontSize(15).text('SINAR ABADI BARU',W/2,18,{align:'center'});
+ doc.setFontSize(12).text('LAPORAN KEUANGAN',W/2,26,{align:'center'});
+ doc.setFont('helvetica','normal').setFontSize(11).text(R.title,W/2,33,{align:'center'});
+ doc.autoTable({startY:40,head:[['KETERANGAN','KAS MASUK','KAS KELUAR','SALDO']],body:reportRows(R),theme:'grid',
   styles:{fontSize:9.5,textColor:20,lineColor:[20,20,20],lineWidth:.2,cellPadding:1.8},headStyles:{fillColor:255,textColor:20,halign:'center',fontStyle:'bold'},
   columnStyles:{1:{halign:'right'},2:{halign:'right'},3:{halign:'right'}}});
  doc.setFont('helvetica','normal').setFontSize(8).text('Sinar Abadi Baru • dicetak '+dmy(today()),14,doc.internal.pageSize.getHeight()-8);
