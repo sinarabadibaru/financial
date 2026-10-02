@@ -73,6 +73,8 @@ const dmy=s=>s.split('-').reverse().join('-'),dmyS=s=>s.split('-').reverse().joi
 const rp=n=>'Rp'+Math.round(n).toLocaleString('id-ID'),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const onlyDigits=s=>(s||'').replace(/\D/g,'');
 const fmtRibuan=s=>{const d=onlyDigits(s).replace(/^0+(?=\d)/,'');return d?Number(d).toLocaleString('id-ID'):''};
+const onlySigned=s=>{const neg=/^\s*-/.test(s||''),d=onlyDigits(s);return(neg&&d?'-':'')+d};
+const fmtRibuanSigned=s=>{const neg=/^\s*-/.test(s||''),d=onlyDigits(s).replace(/^0+(?=\d)/,'');return d?(neg?'-':'')+Number(d).toLocaleString('id-ID'):(neg?'-':'')};
 const today=()=>iso(new Date()),monthRange=(y,m)=>[iso(new Date(y,m,1)),iso(new Date(y,m+1,0))];
 function weekRange(s){const d=P(s),k=(d.getDay()+6)%7,a=new Date(d);a.setDate(d.getDate()-k);const b=new Date(a);b.setDate(a.getDate()+6);return[iso(a),iso(b)]}
 function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.append(e);setTimeout(()=>e.remove(),2500)}
@@ -183,17 +185,19 @@ const toggle=()=>{const m=$('#md').value;p1.hidden=m!=='week';p2.hidden=m!=='mon
 async function saldo(){const n=new Date(),st=await sb.from('app_settings').select('*').maybeSingle(),open=Number(st.data?.saldo_awal||0);
 $('#m').innerHTML=`<h1>Saldo</h1><p class="sub">Atur saldo awal kas dan saldo yang tampil di laporan</p>
 <div class="card" style="margin-bottom:8px"><h2 style="margin-top:0">Saldo awal kas usaha</h2><p class="sub" style="margin-bottom:8px">Isi sekali saat mulai memakai aplikasi: uang kas sebelum transaksi pertama. Jadi dasar hitungan otomatis semua laporan.</p>
-<div class="row"><div><input id="op" type="number" min="0" value="${open}"></div><div style="flex:0"><button class="btn" id="sop">Simpan</button></div></div></div>
+<div class="row"><div><input id="op" type="text" inputmode="numeric" value="${open?Number(open).toLocaleString('id-ID'):''}" placeholder="0"></div><div style="flex:0"><button class="btn" id="sop">Simpan</button></div></div></div>
 <h2>Saldo per periode</h2><p class="sub" style="margin-bottom:8px">Biasanya otomatis. Isi kolom hanya jika ingin mengganti angka di laporan periode tersebut.</p>
 <div class="row"><div><label>Jenis</label><select id="md">${PSEL}</select></div>${PIN(n)}</div><div id="ps" style="margin-top:14px"></div>`;
-$('#sop').onclick=async()=>{const{error}=await sb.from('app_settings').upsert({id:1,saldo_awal:+$('#op').value||0});error?toast(error.message):(toast('Tersimpan'),show())};
-const F=(id,l,ov,au)=>`<div><label>${l}</label><input id="${id}" type="number" value="${ov??''}" placeholder="Otomatis: ${Math.round(au)}"></div>`;
+$('#op').oninput=e=>{e.target.value=fmtRibuan(e.target.value)};
+$('#sop').onclick=async()=>{const{error}=await sb.from('app_settings').upsert({id:1,saldo_awal:+onlyDigits($('#op').value)||0});error?toast(error.message):(toast('Tersimpan'),show())};
+const F=(id,l,ov,au)=>`<div><label>${l}</label><input id="${id}" type="text" inputmode="numeric" value="${ov!=null?Number(ov).toLocaleString('id-ID'):''}" placeholder="Otomatis: ${Math.round(au).toLocaleString('id-ID')}"></div>`;
 const show=async()=>{toggle();const R=await calc(pick()),d=(R.pindahan+R.tin)-(R.akhir+R.tout);
  $('#ps').innerHTML=`<div class="card"><p style="margin-top:0"><b>${esc(R.title)}</b><br><small>Kas masuk ${rp(R.tin)} · Kas keluar ${rp(R.tout)}</small></p>
  <div class="grid" style="margin:0">${F('o1','Saldo awal',R.ov.saldo_awal,R.autoAwal)}${F('o2','Saldo pindahan (kolom Kas Masuk)',R.ov.saldo_pindahan,R.autoPin)}${F('o3','Saldo dipindahkan (kolom Kas Keluar)',R.ov.saldo_dipindahkan,R.autoAk)}</div>
  <p class="${d?'err':'in'}">${d?`Tidak seimbang, selisih ${rp(Math.abs(d))}. TOTAL di laporan tidak akan sama.`:'Seimbang: TOTAL di laporan akan sama.'}</p>
  <button class="btn" id="sv">Simpan</button> <button class="btn g" id="rs">Kembalikan ke otomatis</button></div>`;
- $('#sv').onclick=async()=>{const g=i=>$(i).value===''?null:+$(i).value,p=pick();
+ ['o1','o2','o3'].forEach(i=>$('#'+i).oninput=e=>{e.target.value=fmtRibuanSigned(e.target.value)});
+ $('#sv').onclick=async()=>{const g=i=>$(i).value===''?null:+onlySigned($(i).value),p=pick();
   const{error}=await sb.from('saldo_periode').upsert({tipe:p.tipe,mulai:p.a,saldo_awal:g('#o1'),saldo_pindahan:g('#o2'),saldo_dipindahkan:g('#o3')},{onConflict:'tipe,mulai'});error?toast(error.message):(toast('Tersimpan'),show())};
  $('#rs').onclick=async()=>{const p=pick();await sb.from('saldo_periode').delete().eq('tipe',p.tipe).eq('mulai',p.a);toast('Kembali ke otomatis');show()}};
 ['md','wf','wt','mo','yr'].forEach(i=>$('#'+i).onchange=show);show()}
