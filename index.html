@@ -71,6 +71,8 @@ const z=n=>String(n).padStart(2,'0'),iso=d=>`${d.getFullYear()}-${z(d.getMonth()
 const P=s=>{const[a,b,c]=s.split('-');return new Date(+a,+b-1,+c)};
 const dmy=s=>s.split('-').reverse().join('-'),dmyS=s=>s.split('-').reverse().join(' - ');
 const rp=n=>'Rp'+Math.round(n).toLocaleString('id-ID'),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const onlyDigits=s=>(s||'').replace(/\D/g,'');
+const fmtRibuan=s=>{const d=onlyDigits(s).replace(/^0+(?=\d)/,'');return d?Number(d).toLocaleString('id-ID'):''};
 const today=()=>iso(new Date()),monthRange=(y,m)=>[iso(new Date(y,m,1)),iso(new Date(y,m+1,0))];
 function weekRange(s){const d=P(s),k=(d.getDay()+6)%7,a=new Date(d);a.setDate(d.getDate()-k);const b=new Date(a);b.setDate(a.getDate()+6);return[iso(a),iso(b)]}
 function toast(t){const e=document.createElement('div');e.className='toast';e.textContent=t;document.body.append(e);setTimeout(()=>e.remove(),2500)}
@@ -140,13 +142,14 @@ async function catat(){let t='in',recentRows=await recent(8);
 const draw=()=>{$('#m').innerHTML=`<h1>Catat transaksi</h1><p class="sub">Uang masuk atau uang keluar</p><div class="form card">
 <div class="seg"><button class="btn g ${t==='in'?'sel in':''}" data-t="in">Uang masuk</button><button class="btn g ${t==='out'?'sel out':''}" data-t="out">Uang keluar</button></div>
 <label>Tanggal</label><input id="d" type="date" value="${today()}"><label>Kategori</label><select id="c">${CAT[t].map(c=>`<option>${c}</option>`).join('')}</select>
-<label>Jumlah (Rp)</label><input id="a" type="number" min="1" inputmode="numeric"><label>Keterangan (opsional)</label><input id="n" placeholder="mis. Pembayaran kursus a.n. Budi">
+<label>Jumlah (Rp)</label><input id="a" type="text" inputmode="numeric" placeholder="0"><label>Keterangan (opsional)</label><input id="n" placeholder="mis. Pembayaran kursus a.n. Budi">
 <p><button class="btn" id="s" style="width:100%">Simpan</button></p></div>
 <h2>Transaksi terakhir dimasukkan</h2><div class="wrap" id="rc">${txTable(recentRows,true)}</div>`;
 document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{t=b.dataset.t;draw()});
 document.querySelectorAll('[data-d]').forEach(x=>x.onclick=async()=>{if(!confirm('Hapus transaksi ini?'))return;const{error}=await sb.from('transactions').delete().eq('id',x.dataset.d);
  if(error)return toast(error.message);toast('Terhapus');recentRows=await recent(8);draw()});
-$('#s').onclick=async()=>{const amount=+$('#a').value;if(!amount||amount<1)return toast('Isi jumlah dulu');
+$('#a').oninput=e=>{e.target.value=fmtRibuan(e.target.value)};
+$('#s').onclick=async()=>{const amount=+onlyDigits($('#a').value);if(!amount||amount<1)return toast('Isi jumlah dulu');
  const{error}=await sb.from('transactions').insert({date:$('#d').value,type:t,category:$('#c').value,amount,description:$('#n').value.trim()||null});
  if(error)return toast('Gagal menyimpan: '+error.message);toast('Tersimpan');recentRows=await recent(8);draw()}};draw()}
 
